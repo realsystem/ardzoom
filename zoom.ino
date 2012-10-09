@@ -2,18 +2,22 @@
   
  */
 #include "bitlash.h"
+#ifdef SPI_ENABLE
 #include <SPI.h>
+#endif
 
 #define arSize 17
 #define minVal 805
 #define maxVal 1000
 #define zoomStep 1000
 
+//PINs for DC motor on zooming
 int zoomPin = 9;
 int zoomPin1 = 8;
 int zoomPin2 = 7;
 int zoomPWM = 120;
 
+//PINs for Stepper motor on autofocus
 int stepperEN = 10;
 int stepperPin2 = 6;
 int stepperPin7 = 5;
@@ -28,8 +32,8 @@ int focusMISO = 12;
 int focusSCK = 13;
 #endif
 
-int sensorPin = A1;    // select the input pin for the potentiometer
-int sensorValue = 0;  // variable to store the value coming from the sensor
+int sensorPin = A1;
+int sensorValue = 0;
 int newVal;
 
 boolean dir = true, canCheck = true;
