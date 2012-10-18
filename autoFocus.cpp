@@ -7,10 +7,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-IplImage* image = 0;
-IplImage* dst = 0;
-IplImage* dst2 = 0;
-
 char message[] = "Hello there!\n";
 char buf[sizeof(message)];
 
@@ -46,19 +42,15 @@ int send_cmd(char *cmd, int port)
     return 0;
 }
 
-short getFocus(char *filename)
+short getFocus(IplImage *image)
 {
-	if (! filename) return -1;
-	image = cvLoadImage(filename, 1);
-	dst = cvCreateImage( cvGetSize(image), IPL_DEPTH_16S, image->nChannels);
-	dst2 = cvCreateImage( cvGetSize(image), image->depth, image->nChannels);
+	IplImage* dst = 0;
+	IplImage* dst2 = 0;
+	
+	dst = cvCreateImage(cvGetSize(image), IPL_DEPTH_16S, image->nChannels);
+	dst2 = cvCreateImage(cvGetSize(image), image->depth, image->nChannels);
 
-	printf("[i] image: %s\n", filename);
-	assert( image != 0 );
-
-	cvNamedWindow("original", CV_WINDOW_AUTOSIZE);
-	cvNamedWindow("cvLaplace", CV_WINDOW_AUTOSIZE);
-
+	assert(image != 0);
 	int aperture = 3;
 
 	cvLaplace(image, dst, aperture);
@@ -72,31 +64,36 @@ short getFocus(char *filename)
 
 	//cvConvertScale(dst, dst2);
 
-	//cvShowImage("original", image);
-	//cvShowImage("cvLaplace", dst2);
-
-	//cvWaitKey(0);
-
-	cvReleaseImage(&image);
 	cvReleaseImage(&dst);
 	cvReleaseImage(&dst2);
-	cvDestroyAllWindows();
+
 	return maxLap;
 }
 
-int main(int argc, char* argv[])
+int captureCam(void)
 {
-	short tmpLap, curLap;
-	int i;
+	cvNamedWindow("capture", CV_WINDOW_AUTOSIZE);
+	CvCapture* capture = cvCreateCameraCapture(CV_CAP_ANY);
+	assert(capture);
+	double width = cvGetCaptureProperty(capture, CV_CAP_PROP_FRAME_WIDTH);
+        double height = cvGetCaptureProperty(capture, CV_CAP_PROP_FRAME_HEIGHT);
+        printf("[i] %.0f x %.0f\n", width, height);
+	IplImage* frame = 0;
+	while(true){
+		frame = cvQueryFrame(capture);
+		cvShowImage("capture", frame);
+                getFocus(frame);
+		//cvWaitKey(0);
+        }
+        cvReleaseCapture(&capture);
+	cvDestroyWindow("capture");
 
-	if (argc <= 0) return -1;
-	for (i=1; i<argc; i++)
-	{
-		tmpLap = getFocus(argv[i]);
-		if (tmpLap < 900) send_cmd("focusIn", 3425);
-		if (tmpLap > curLap) curLap = tmpLap;
-	}
-	printf("actually maximum Lap=%d\n", curLap);
+	return 0;
+}
+
+main(int argc, char* argv[])
+{
+	captureCam();
 
 	return 0;
 }
