@@ -1,13 +1,20 @@
-CC              := g++
-CFLAGS          := -I/usr/include/opencv
-LIBRARIES       := -lopencv_core -lopencv_imgproc -lopencv_highgui
+CC		:= g++
+CFLAGS		:= -I/usr/include/opencv -I/usr/local/include/opencv -L/usr/local/lib
+LDFLAGS		:=
+LIBRARIES	:= -lopencv_core -lopencv_imgproc -lopencv_highgui
+SOURCES		:= autoFocus.cpp
+OBJECTS		:= $(SOURCES:.cpp=.o)
+EXECUTABLE	:= autoFocus
 
 .PHONY: all clean
 
-all: autoFocus
+all: $(SOURCES) $(EXECUTABLE)
+    
+$(EXECUTABLE): $(OBJECTS) 
+	$(CC) $(LDFLAGS) $(OBJECTS) $(LIBRARIES) -o $@
 
-autoFocus:
-	$(CC) $(CFLAGS) -o autoFocus autoFocus.cpp $(LIBRARIES)
-        
+.cpp.o:
+	$(CC) $(CFLAGS) $(LIBRARIES) $< -o $@
+
 clean:
-	rm -f *.o
+	rm -f $(OBJECTS) $(EXECUTABLE)
