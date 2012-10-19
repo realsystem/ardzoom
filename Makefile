@@ -6,6 +6,9 @@ SOURCES		:= autoFocus.cpp
 OBJECTS		:= $(SOURCES:.cpp=.o)
 EXECUTABLE	:= autoFocus
 
+sock_serv: sock_serv.c
+	gcc $< -o $@
+
 .PHONY: all clean
 
 all: $(SOURCES) $(EXECUTABLE)
@@ -17,4 +20,4 @@ $(EXECUTABLE): $(OBJECTS)
 	$(CC) $(CFLAGS) $(LIBRARIES) $< -o $@
 
 clean:
-	rm -f $(OBJECTS) $(EXECUTABLE)
+	rm -f $(OBJECTS) $(EXECUTABLE) sock_serv
