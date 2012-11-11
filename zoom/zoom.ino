@@ -2,6 +2,7 @@
   
  */
 #include "bitlash.h"
+#include "Ultrasonic.h"
 #ifdef SPI_ENABLE
 #include <SPI.h>
 #endif
@@ -10,12 +11,20 @@
 #define minVal 805
 #define maxVal 1000
 #define zoomStep 1000
+#define zoomDefaultPWM 120
+#define stepperStep 4
+#define stepperStepDelay 30
+#define stepperDefaultPWM 35
 
 //PINs for DC motor on zooming
-int zoomPin = 9;
-int zoomPin1 = 8;
-int zoomPin2 = 7;
-int zoomPWM = 120;
+#define zoomPin 9
+#define zoomPin1 8
+#define zoomPin2 7
+#define sensorPin A1
+
+//PINs for focus sensor
+#define focusSensorPower 11
+#define focusSensor 2
 
 //PINs for Stepper motor on autofocus
 int stepperEN = 10;
@@ -23,7 +32,9 @@ int stepperPin2 = 6;
 int stepperPin7 = 5;
 int stepperPin10 = 4;
 int stepperPin15 = 3;
-int stepperPWM = 50;
+
+//DC motors
+int motorsPWM = 250;
 
 #ifdef SPI_ENABLE
 int focusSS = 10;
@@ -32,11 +43,14 @@ int focusMISO = 12;
 int focusSCK = 13;
 #endif
 
-int sensorPin = A1;
+int stepperPWM = stepperDefaultPWM;
+int zoomPWM = zoomDefaultPWM;
 int sensorValue = 0;
 int newVal;
 
 boolean dir = true, canCheck = true;
+
+Ultrasonic ultrasonic(11, 12);
 
 numvar zoomIN(int val) {
   digitalWrite(zoomPin2, 1);
@@ -223,7 +237,7 @@ numvar stepperOff() {
 
 numvar stepperLeft() {
   analogWrite(stepperEN, stepperPWM);
-  for (int i = 0; i < 19; i++) {
+  //for (int i = 0; i < 19; i++) {
     digitalWrite(stepperPin2, 0);
     digitalWrite(stepperPin7, 1);
     digitalWrite(stepperPin10, 0);
@@ -244,14 +258,14 @@ numvar stepperLeft() {
     digitalWrite(stepperPin10, 1);
     digitalWrite(stepperPin15, 0);
     delay(10);
-  }
+  //}
   analogWrite(stepperEN, 0);
   return 0;
 }
 
 numvar stepperRight() {
   analogWrite(stepperEN, stepperPWM);
-  for (int i = 0; i < 19; i++) {
+  //for (int i = 0; i < 19; i++) {
     digitalWrite(stepperPin2, 0);
     digitalWrite(stepperPin7, 1);
     digitalWrite(stepperPin10, 0);
@@ -272,9 +286,79 @@ numvar stepperRight() {
     digitalWrite(stepperPin10, 0);
     digitalWrite(stepperPin15, 1);
     delay(10);
-  }
+  //}
   analogWrite(stepperEN, 0);
   return 0;
+}
+
+numvar readFocusSensor() {
+  digitalWrite(focusSensorPower, 1);
+  boolean val = digitalRead(focusSensor);
+  digitalWrite(focusSensorPower, 0);
+  Serial.println("reading focus sensor:");
+  Serial.println(val);
+  return 0;
+}
+
+numvar leftMotorForward() {
+  digitalWrite(stepperPin2, 0);
+  digitalWrite(stepperPin7, 1);
+  return 0;
+}
+
+numvar leftMotorBackward() {
+  digitalWrite(stepperPin2, 1);
+  digitalWrite(stepperPin7, 0);
+  return 0;
+}
+
+numvar leftMotorBreak() {
+  digitalWrite(stepperPin2, 1);
+  digitalWrite(stepperPin7, 1);
+  return 0;
+}
+
+numvar rightMotorForward() {
+  digitalWrite(stepperPin10, 0);
+  digitalWrite(stepperPin15, 1);
+  return 0;
+}
+
+numvar rightMotorBackward() {
+  digitalWrite(stepperPin10, 1);
+  digitalWrite(stepperPin15, 0);
+  return 0;
+}
+
+numvar rightMotorBreak() {
+  digitalWrite(stepperPin10, 1);
+  digitalWrite(stepperPin15, 1);
+  return 0;
+}
+
+numvar motorRun() {
+  analogWrite(stepperEN, motorsPWM);
+  leftMotorForward();
+  rightMotorForward();
+  delay(5000);
+  leftMotorBreak();
+  rightMotorBreak();
+  leftMotorBackward();
+  rightMotorBackward();
+  delay(5000);
+  leftMotorBreak();
+  rightMotorBreak();
+  analogWrite(stepperEN, 0);
+  return 0;
+}
+
+numvar checkUltra() {
+  float dist_cm = ultrasonic.Ranging(CM);
+  if (dist_cm < 3000) {
+    Serial.println("ultra:");
+    Serial.println(dist_cm);
+    delay(100);
+  }
 }
 
 void setup()  { 
@@ -287,6 +371,9 @@ void setup()  {
   pinMode(stepperPin7, OUTPUT);
   pinMode(stepperPin10, OUTPUT);
   pinMode(stepperPin15, OUTPUT);
+  
+  pinMode(focusSensorPower, OUTPUT);
+  pinMode(focusSensor, INPUT);
   
   initBitlash(115200);
   addBitlashFunction("zon", (bitlash_function) zoomON);
@@ -304,6 +391,12 @@ void setup()  {
   addBitlashFunction("str", (bitlash_function) stepperRight);
   addBitlashFunction("sto", (bitlash_function) stepperOff);
   
+  addBitlashFunction("rdf", (bitlash_function) readFocusSensor);
+  
+  addBitlashFunction("motors", (bitlash_function) motorRun);
+  
+  addBitlashFunction("ultra", (bitlash_function) checkUltra);
+  
 #ifdef SPI_ENABLE
   addBitlashFunction("wr", (bitlash_function) writeReg);
   addBitlashFunction("rr", (bitlash_function) readReg);
@@ -312,6 +405,9 @@ void setup()  {
 } 
 
 void loop()  {
+  //motorRun();
+  float dist_cm = ultrasonic.Ranging(CM);
+  if (dist_cm < 3000) checkUltra();
   runBitlash();
   //if (canCheck) checkSensor();
 }

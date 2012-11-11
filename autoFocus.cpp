@@ -61,6 +61,8 @@ short getFocus(IplImage *image)
 		if(imgData[i] > maxLap) maxLap = imgData[i];
 	}
 	printf("maxLap=%d\n", maxLap);
+	if (maxLap < 100) send_cmd("stl", 3425);
+	else if (maxLap > 250) send_cmd("str", 3425);
 
 	//cvConvertScale(dst, dst2);
 
@@ -93,7 +95,8 @@ int captureCam(void)
 
 main(int argc, char* argv[])
 {
-	captureCam();
+	//captureCam();
+	while (1) send_cmd("stl", atoi(argv[1]));
 
 	return 0;
 }
