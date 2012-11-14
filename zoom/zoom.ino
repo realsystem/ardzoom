@@ -300,54 +300,90 @@ numvar readFocusSensor() {
   return 0;
 }
 
+//DC motors
+
 numvar leftMotorForward() {
   digitalWrite(stepperPin2, 0);
   digitalWrite(stepperPin7, 1);
+  delay(30);
   return 0;
 }
 
 numvar leftMotorBackward() {
   digitalWrite(stepperPin2, 1);
   digitalWrite(stepperPin7, 0);
+  delay(30);
   return 0;
 }
 
 numvar leftMotorBreak() {
-  digitalWrite(stepperPin2, 1);
-  digitalWrite(stepperPin7, 1);
+  delay(30);
+  digitalWrite(stepperPin2, 0);
+  digitalWrite(stepperPin7, 0);
   return 0;
 }
 
 numvar rightMotorForward() {
   digitalWrite(stepperPin10, 0);
   digitalWrite(stepperPin15, 1);
+  delay(30);
   return 0;
 }
 
 numvar rightMotorBackward() {
   digitalWrite(stepperPin10, 1);
   digitalWrite(stepperPin15, 0);
+  delay(30);
   return 0;
 }
 
 numvar rightMotorBreak() {
-  digitalWrite(stepperPin10, 1);
-  digitalWrite(stepperPin15, 1);
+  delay(30);
+  digitalWrite(stepperPin10, 0);
+  digitalWrite(stepperPin15, 0);
   return 0;
 }
 
 numvar motorRun() {
+  Serial.println("RUN");
   analogWrite(stepperEN, motorsPWM);
+  
   leftMotorForward();
   rightMotorForward();
-  delay(5000);
+  delay(1000);
   leftMotorBreak();
   rightMotorBreak();
+
   leftMotorBackward();
   rightMotorBackward();
-  delay(5000);
+  delay(1000);
   leftMotorBreak();
   rightMotorBreak();
+  
+  leftMotorForward();
+  rightMotorForward();
+  delay(1000);
+  leftMotorBreak();
+  rightMotorBreak();
+  
+  rightMotorForward();
+  leftMotorBackward();
+  delay(700);
+  leftMotorBreak();
+  rightMotorBreak();
+  
+  leftMotorForward();
+  rightMotorForward();
+  delay(1000);
+  leftMotorBreak();
+  rightMotorBreak();
+  
+  leftMotorForward();
+  rightMotorBackward();
+  delay(1500);
+  leftMotorBreak();
+  rightMotorBreak();
+  
   analogWrite(stepperEN, 0);
   return 0;
 }
@@ -362,9 +398,9 @@ numvar checkUltra() {
 }
 
 void setup()  { 
-  pinMode(zoomPin, OUTPUT); 
-  pinMode(zoomPin1, OUTPUT); 
-  pinMode(zoomPin2, OUTPUT);
+  //pinMode(zoomPin, OUTPUT); 
+  //pinMode(zoomPin1, OUTPUT); 
+  //pinMode(zoomPin2, OUTPUT);
   
   pinMode(stepperEN, OUTPUT);
   pinMode(stepperPin2, OUTPUT);
@@ -372,10 +408,10 @@ void setup()  {
   pinMode(stepperPin10, OUTPUT);
   pinMode(stepperPin15, OUTPUT);
   
-  pinMode(focusSensorPower, OUTPUT);
-  pinMode(focusSensor, INPUT);
+  //pinMode(focusSensorPower, OUTPUT);
+  //pinMode(focusSensor, INPUT);
   
-  initBitlash(115200);
+  //initBitlash(115200);
   addBitlashFunction("zon", (bitlash_function) zoomON);
   addBitlashFunction("zoff", (bitlash_function) zoomOFF);
   addBitlashFunction("check", (bitlash_function) checkSensor);
@@ -405,10 +441,12 @@ void setup()  {
 } 
 
 void loop()  {
-  //motorRun();
-  float dist_cm = ultrasonic.Ranging(CM);
-  if (dist_cm < 3000) checkUltra();
-  runBitlash();
+  delay(7000);
+  motorRun();
+  //delay(5000);
+  //float dist_cm = ultrasonic.Ranging(CM);
+  //if (dist_cm < 3000) checkUltra();
+  //runBitlash();
   //if (canCheck) checkSensor();
 }
 
