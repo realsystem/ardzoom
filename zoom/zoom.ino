@@ -50,8 +50,12 @@ int newVal;
 
 boolean dir = true, canCheck = true;
 
-Ultrasonic ultrasonic(11, 12);
+//ultrasonic
+#define ultraTrig 11
+#define ultraEcho 12
+Ultrasonic ultrasonic(ultraTrig, ultraEcho);
 
+//zoom
 numvar zoomIN(int val) {
   digitalWrite(zoomPin2, 1);
   digitalWrite(zoomPin1, 0);
@@ -344,25 +348,47 @@ numvar rightMotorBreak() {
   return 0;
 }
 
+float checkUltra() {
+  float dist_cm = ultrasonic.Ranging(CM);
+  if (dist_cm < 3000) {
+    //Serial.println("ultra:");
+    //Serial.println(dist_cm);
+    return dist_cm;
+  }
+}
+
+#define ms_div 100
+#define ultraZone 25
+
+void my_delay(numvar ms) {
+  int ms_tmp = ms/ms_div;
+  int i;
+  Serial.println("ms_tmp:");
+  Serial.println(ms_tmp);
+  for (i = 0; i < ms_div; i++) {
+    if (checkUltra() > ultraZone) delay(ms_tmp);
+  }
+}
+
 numvar motorRun() {
   Serial.println("RUN");
+  if (checkUltra() > 15) {
   analogWrite(stepperEN, motorsPWM);
-  
   leftMotorForward();
   rightMotorForward();
-  delay(1000);
+  my_delay(10000);
   leftMotorBreak();
   rightMotorBreak();
 
-  leftMotorBackward();
+  /*leftMotorBackward();
   rightMotorBackward();
-  delay(1000);
+  my_delay(1000);
   leftMotorBreak();
   rightMotorBreak();
   
   leftMotorForward();
   rightMotorForward();
-  delay(1000);
+  my_delay(1000);
   leftMotorBreak();
   rightMotorBreak();
   
@@ -374,7 +400,7 @@ numvar motorRun() {
   
   leftMotorForward();
   rightMotorForward();
-  delay(1000);
+  my_delay(1000);
   leftMotorBreak();
   rightMotorBreak();
   
@@ -382,19 +408,11 @@ numvar motorRun() {
   rightMotorBackward();
   delay(1500);
   leftMotorBreak();
-  rightMotorBreak();
+  rightMotorBreak();*/
   
   analogWrite(stepperEN, 0);
-  return 0;
-}
-
-numvar checkUltra() {
-  float dist_cm = ultrasonic.Ranging(CM);
-  if (dist_cm < 3000) {
-    Serial.println("ultra:");
-    Serial.println(dist_cm);
-    delay(100);
   }
+  return 0;
 }
 
 void setup()  { 
@@ -411,7 +429,7 @@ void setup()  {
   //pinMode(focusSensorPower, OUTPUT);
   //pinMode(focusSensor, INPUT);
   
-  //initBitlash(115200);
+  initBitlash(115200);
   addBitlashFunction("zon", (bitlash_function) zoomON);
   addBitlashFunction("zoff", (bitlash_function) zoomOFF);
   addBitlashFunction("check", (bitlash_function) checkSensor);
@@ -441,12 +459,10 @@ void setup()  {
 } 
 
 void loop()  {
-  delay(7000);
+  //delay(1000);
   motorRun();
   //delay(5000);
-  //float dist_cm = ultrasonic.Ranging(CM);
-  //if (dist_cm < 3000) checkUltra();
-  //runBitlash();
+  runBitlash();
   //if (canCheck) checkSensor();
 }
 
