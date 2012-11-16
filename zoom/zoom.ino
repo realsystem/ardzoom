@@ -51,9 +51,12 @@ int newVal;
 boolean dir = true, canCheck = true;
 
 //ultrasonic
-#define ultraTrig 11
-#define ultraEcho 12
-Ultrasonic ultrasonic(ultraTrig, ultraEcho);
+#define fUltraTrig 11
+#define fUltraEcho 12
+#define bUltraTrig 8
+#define bUltraEcho 9
+Ultrasonic fUltrasonic(fUltraTrig, fUltraEcho);
+Ultrasonic bUltrasonic(bUltraTrig, bUltraEcho);
 
 //zoom
 numvar zoomIN(int val) {
@@ -348,45 +351,64 @@ numvar rightMotorBreak() {
   return 0;
 }
 
-float checkUltra() {
-  float dist_cm = ultrasonic.Ranging(CM);
-  if (dist_cm < 3000) {
-    //Serial.println("ultra:");
-    //Serial.println(dist_cm);
-    return dist_cm;
+float checkUltra(int i) {
+  float dist_cm;
+  switch (i) {
+    case 1:
+      dist_cm = fUltrasonic.Ranging(CM);
+      if (dist_cm < 3000) {
+        Serial.println("forwUltra:");
+        Serial.println(dist_cm);
+        return dist_cm;
+      }
+      break;
+    case 2:
+      dist_cm = bUltrasonic.Ranging(CM);
+      if (dist_cm < 3000) {
+        Serial.println("backUltra:");
+        Serial.println(dist_cm);
+        return dist_cm;
+      }
+      break;
+    default:
+      Serial.println("Ultra error");
+      return -1;
   }
+  //Serial.println("Free road");
+  //return 3000;
 }
 
 #define ms_div 100
 #define ultraZone 25
 
-void my_delay(numvar ms) {
+void my_delay(int ms, int u) {
   int ms_tmp = ms/ms_div;
   int i;
   Serial.println("ms_tmp:");
   Serial.println(ms_tmp);
   for (i = 0; i < ms_div; i++) {
-    if (checkUltra() > ultraZone) delay(ms_tmp);
+    if (checkUltra(u) > ultraZone) delay(ms_tmp);
+    else break;
   }
 }
 
 numvar motorRun() {
   Serial.println("RUN");
-  if (checkUltra() > 15) {
+  if ((checkUltra(1) > ultraZone) && (checkUltra(2) > ultraZone)) {
   analogWrite(stepperEN, motorsPWM);
   leftMotorForward();
   rightMotorForward();
-  my_delay(10000);
+  my_delay(10000, 1);
   leftMotorBreak();
   rightMotorBreak();
 
-  /*leftMotorBackward();
+  leftMotorBackward();
   rightMotorBackward();
-  my_delay(1000);
+  my_delay(10000, 2);
   leftMotorBreak();
   rightMotorBreak();
   
-  leftMotorForward();
+  /*leftMotorForward();
   rightMotorForward();
   my_delay(1000);
   leftMotorBreak();
@@ -449,8 +471,6 @@ void setup()  {
   
   addBitlashFunction("motors", (bitlash_function) motorRun);
   
-  addBitlashFunction("ultra", (bitlash_function) checkUltra);
-  
 #ifdef SPI_ENABLE
   addBitlashFunction("wr", (bitlash_function) writeReg);
   addBitlashFunction("rr", (bitlash_function) readReg);
@@ -459,6 +479,9 @@ void setup()  {
 } 
 
 void loop()  {
+  //checkUltra(1);
+  //delay(1000);
+  //checkUltra(2);
   //delay(1000);
   motorRun();
   //delay(5000);
