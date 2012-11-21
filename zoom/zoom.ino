@@ -27,11 +27,12 @@
 #define focusSensor 2
 
 //PINs for Stepper motor on autofocus
+//the same pins are for two DC motors with reverse and break
 int stepperEN = 10;
-int stepperPin2 = 6;
-int stepperPin7 = 5;
-int stepperPin10 = 4;
-int stepperPin15 = 3;
+int stepperPin2 = 5;
+int stepperPin7 = 4;
+int stepperPin10 = 3;
+int stepperPin15 = 2;
 
 //DC motors
 int motorsPWM = 250;
@@ -47,14 +48,15 @@ int stepperPWM = stepperDefaultPWM;
 int zoomPWM = zoomDefaultPWM;
 int sensorValue = 0;
 int newVal;
+int robotDirection = 2;
 
 boolean dir = true, canCheck = true;
 
 //ultrasonic
-#define fUltraTrig 11
+#define fUltraTrig 13
 #define fUltraEcho 12
-#define bUltraTrig 8
-#define bUltraEcho 9
+#define bUltraTrig 7
+#define bUltraEcho 8
 Ultrasonic fUltrasonic(fUltraTrig, fUltraEcho);
 Ultrasonic bUltrasonic(bUltraTrig, bUltraEcho);
 
@@ -374,12 +376,10 @@ float checkUltra(int i) {
       Serial.println("Ultra error");
       return -1;
   }
-  //Serial.println("Free road");
-  //return 3000;
 }
 
-#define ms_div 100
-#define ultraZone 25
+#define ms_div 200
+#define ultraZone 15
 
 void my_delay(int ms, int u) {
   int ms_tmp = ms/ms_div;
@@ -395,44 +395,36 @@ void my_delay(int ms, int u) {
 numvar motorRun() {
   Serial.println("RUN");
   if ((checkUltra(1) > ultraZone) && (checkUltra(2) > ultraZone)) {
-  analogWrite(stepperEN, motorsPWM);
-  leftMotorForward();
-  rightMotorForward();
-  my_delay(10000, 1);
-  leftMotorBreak();
-  rightMotorBreak();
-
-  leftMotorBackward();
-  rightMotorBackward();
-  my_delay(10000, 2);
-  leftMotorBreak();
-  rightMotorBreak();
+    analogWrite(stepperEN, motorsPWM);
   
-  /*leftMotorForward();
-  rightMotorForward();
-  my_delay(1000);
-  leftMotorBreak();
-  rightMotorBreak();
-  
-  rightMotorForward();
-  leftMotorBackward();
-  delay(700);
-  leftMotorBreak();
-  rightMotorBreak();
-  
-  leftMotorForward();
-  rightMotorForward();
-  my_delay(1000);
-  leftMotorBreak();
-  rightMotorBreak();
-  
-  leftMotorForward();
-  rightMotorBackward();
-  delay(1500);
-  leftMotorBreak();
-  rightMotorBreak();*/
-  
-  analogWrite(stepperEN, 0);
+    switch (robotDirection) {
+      case 3:
+        leftMotorBackward();
+        rightMotorBackward();
+        delay(100);
+        leftMotorBreak();
+        rightMotorBreak();
+        robotDirection = 1;
+        break;
+      case 2:
+        leftMotorForward();
+        rightMotorForward();
+        my_delay(10000, 1);
+        leftMotorBreak();
+        rightMotorBreak();
+        robotDirection = 3;
+        break;
+      case 1:
+        leftMotorForward();
+        rightMotorBackward();
+        delay(500);
+        leftMotorBreak();
+        rightMotorBreak();
+        robotDirection = 2;
+        break;
+    }
+   
+    analogWrite(stepperEN, 0);
   }
   return 0;
 }
@@ -479,13 +471,13 @@ void setup()  {
 } 
 
 void loop()  {
-  //checkUltra(1);
-  //delay(1000);
-  //checkUltra(2);
-  //delay(1000);
+  runBitlash();
+  /*checkUltra(1);
+  delay(1000);
+  checkUltra(2);
+  delay(1000);*/
   motorRun();
   //delay(5000);
-  runBitlash();
   //if (canCheck) checkSensor();
 }
 
