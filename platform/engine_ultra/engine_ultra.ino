@@ -1,10 +1,12 @@
-/*
-  
- */
-#include "bitlash.h"
-#include "Ultrasonic.h"
+#include <looper.h>
+#include <bitlash.h>
+#include <Ultrasonic.h>
 
-//PINs for motors with reverse and break
+
+//general defs
+#define serialPortSpeed 115200
+
+//DC motors defs
 #define motorsDefaultPWM 250
 #define motorsEN 10
 #define motorsPin2 5
@@ -13,25 +15,38 @@
 #define motorsPin15 2
 
 //robot defs
-#define ms_div 10
-#define ultraZone 25
-#define robotDefaultDirection 2
+#define goForward 2
+#define goBackward 3
+#define turnRight 4
+#define turnLeft 5
+#define robotDefaultDirection goForward
+#define goInterval 70
 
 //ultrasonic defs
 #define fUltraTrig 13
 #define fUltraEcho 12
 #define bUltraTrig 7
 #define bUltraEcho 8
+#define ultraMaxRange 2000
+#define checkUltraInterval 50
+#define ultraForward 1
+#define ultraBackward 2
+#define ultraZone 20
 
-//DC motors PWM
+//DC motors vars
 int motorsPWM = motorsDefaultPWM;
 
 //robot vars
-int robotDirection = robotDefaultDirection, avoidObstacle = 0;
+int robotNextDirection = robotDefaultDirection, avoidObstacle = 0;
+boolean blockForward = false, blockBackward = false;
+boolean ultraBlockForward = false, ultraBlockBackward = false;
 
 //ultrasonic obj
 Ultrasonic fUltrasonic(fUltraTrig, fUltraEcho);
 Ultrasonic bUltrasonic(bUltraTrig, bUltraEcho);
+
+//looper obj
+looper myScheduler;
 
 //DC motors functions
 numvar leftMotorForward() {
@@ -49,9 +64,9 @@ numvar leftMotorBackward() {
 }
 
 numvar leftMotorBreak() {
-  delay(30);
   digitalWrite(motorsPin2, 0);
   digitalWrite(motorsPin7, 0);
+  delay(30);
   return 0;
 }
 
@@ -70,100 +85,135 @@ numvar rightMotorBackward() {
 }
 
 numvar rightMotorBreak() {
-  delay(30);
   digitalWrite(motorsPin10, 0);
   digitalWrite(motorsPin15, 0);
+  delay(30);
   return 0;
 }
 
 //Ultrasonic functions
-float checkUltra(int i) {
-  float dist_cm = 2000;
-  switch (i) {
-    case 1:
-      dist_cm = fUltrasonic.Ranging(CM);
-      break;
-    case 2:
-      dist_cm = bUltrasonic.Ranging(CM);
-      break;
-    default:
-      return -1;
+float checkUltra(int ultraNum) {
+  float dist_cm = ultraMaxRange;
+//  Serial.println("checkUltra");
+  switch (ultraNum) {
+  case ultraForward:
+    dist_cm = fUltrasonic.Ranging(CM);
+//    Serial.println("ultraForward");
+//    Serial.print("dist_cm=");
+//    Serial.println(dist_cm, 1);
+    break;
+  case ultraBackward:
+    dist_cm = bUltrasonic.Ranging(CM);
+//    Serial.println("ultraBackward");
+//    Serial.print("dist_cm=");
+//    Serial.println(dist_cm, 1);
+    break;
+  default:
+    return -1;
   }
   return dist_cm;
 }
 
-boolean my_delay(int ms, int u) {
-  int i, ms_tmp = ms/ms_div;
-  for (i = 0; i < ms_tmp; i++) {
-    if (checkUltra(u) > ultraZone) delay(ms_div);
-    else return false;
+void checkUltraProc(void) {
+//  Serial.println("checkUltraProc");
+  if (checkUltra(ultraForward) <= ultraZone) {
+    ultraBlockForward = true;
+//    Serial.println("ultraBlockForward = true");
   }
-  return true;
+  else ultraBlockForward = false;
+  if (checkUltra(ultraBackward) <= ultraZone) {
+    ultraBlockBackward = true;
+//    Serial.println("ultraBlockBackward = true");
+  }
+  else ultraBlockBackward = false;
+}
+
+void goSlightlyBackward(int backWardDelay) {
+  leftMotorBackward();
+  rightMotorBackward();
+  delay(backWardDelay);
+  leftMotorBreak();
+  rightMotorBreak();
 }
 
 //main
-numvar motorRun() {
-  if ((checkUltra(1) > ultraZone) && (checkUltra(2) > ultraZone)) {
+void motorRun(void) {
+//  Serial.println("motorRun");
+  if ((!blockForward) && (!blockBackward)) {
     analogWrite(motorsEN, motorsPWM);
-    switch (robotDirection) {
-      //turn slightly right
-      case 4:
-        leftMotorBackward();
-        rightMotorForward();
-        delay(random(100, 150));
-        leftMotorBreak();
-        rightMotorBreak();
-        robotDirection = 2;
-        break;
-      //go slightly back
-      case 3:
+    switch (robotNextDirection) {
+    case turnRight:
+      goSlightlyBackward(random(50, 200));
+      rightMotorForward();
+      leftMotorBackward();
+      delay(random(30, 100));
+      leftMotorBreak();
+      rightMotorBreak();
+      robotNextDirection = goForward;
+      break;
+    case goBackward:
+//      Serial.println("goBackward");
+      if (!ultraBlockBackward) {
+//        Serial.println("motorsBackward");
         leftMotorBackward();
         rightMotorBackward();
-        my_delay(100, 2);
+      }
+      else {
+//        Serial.println("motorsBreak");
         leftMotorBreak();
         rightMotorBreak();
-        robotDirection = 5;//random(4,6);
-        break;
-      //go go go
-      case 2:
+        robotNextDirection = goForward;
+      }
+      break;
+    case goForward:
+//      Serial.println("goForward");
+      if (!ultraBlockForward) {
+//        Serial.println("motorsForward");
         leftMotorForward();
         rightMotorForward();
-        if (my_delay(1000, 1)) {
-          robotDirection = 2;
-          break;
-        }
+      }
+      else {
+//        Serial.println("motorsBreak");
         leftMotorBreak();
         rightMotorBreak();
-        robotDirection = 3;
-        break;
-      //turn slightly left
-      case 5:
-        leftMotorForward();
-        rightMotorBackward();
-        delay(100);
-        leftMotorBreak();
-        rightMotorBreak();
-        robotDirection = 2;
-        break;
+        robotNextDirection = random(turnRight, turnLeft + 1);
+      }
+      break;
+    case turnLeft:
+      goSlightlyBackward(random(50, 200));
+      leftMotorForward();
+      rightMotorBackward();
+      delay(random(30, 100));
+      leftMotorBreak();
+      rightMotorBreak();
+      robotNextDirection = goForward;
+      break;
     }
-    analogWrite(motorsEN, 0);
   }
-  return 0;
+  else {
+    analogWrite(motorsEN, 0);//TODO: add special rule to disable motors
+  }
+//  Serial.println("--");
 }
 
 void setup()  {
-  initBitlash(115200);
+  initBitlash(serialPortSpeed);
   pinMode(motorsEN, OUTPUT);
   pinMode(motorsPin2, OUTPUT);
   pinMode(motorsPin7, OUTPUT);
   pinMode(motorsPin10, OUTPUT);
   pinMode(motorsPin15, OUTPUT);
-  addBitlashFunction("motors", (bitlash_function) motorRun);
+  randomSeed(analogRead(0));
+  addBitlashFunction("m", (bitlash_function) motorRun);
+  myScheduler.addTask(checkUltraProc, checkUltraInterval);
+  myScheduler.addTask(motorRun, goInterval);
 } 
 
 void loop()  {
   runBitlash();
-  motorRun();
+  myScheduler.scheduler();
+  //motorRun();
 }
+
 
 
