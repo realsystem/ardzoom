@@ -2,10 +2,6 @@
   
  */
 #include "bitlash.h"
-#include "Ultrasonic.h"
-#ifdef SPI_ENABLE
-#include <SPI.h>
-#endif
 
 #define arSize 17
 #define minVal 805
@@ -27,38 +23,18 @@
 #define focusSensor 2
 
 //PINs for Stepper motor on autofocus
-//the same pins are for two DC motors with reverse and break
 int stepperEN = 10;
 int stepperPin2 = 5;
 int stepperPin7 = 4;
 int stepperPin10 = 3;
 int stepperPin15 = 2;
 
-//DC motors
-int motorsPWM = 250;
-
-#ifdef SPI_ENABLE
-int focusSS = 10;
-int focusMOSI = 11;
-int focusMISO = 12;
-int focusSCK = 13;
-#endif
-
 int stepperPWM = stepperDefaultPWM;
 int zoomPWM = zoomDefaultPWM;
 int sensorValue = 0;
 int newVal;
-int robotDirection = 2;
 
 boolean dir = true, canCheck = true;
-
-//ultrasonic
-#define fUltraTrig 13
-#define fUltraEcho 12
-#define bUltraTrig 7
-#define bUltraEcho 8
-Ultrasonic fUltrasonic(fUltraTrig, fUltraEcho);
-Ultrasonic bUltrasonic(bUltraTrig, bUltraEcho);
 
 //zoom
 numvar zoomIN(int val) {
@@ -185,60 +161,6 @@ numvar zoomStepRight() {
   return 0;
 }
 
-#ifdef SPI_ENABLE
-unsigned int readRegister(byte thisRegister, int bytesToRead ) {
-  byte inByte = 0;
-  unsigned int result = 0;
-
-  byte dataToSend = thisRegister;
-  digitalWrite(focusSS, LOW);
-  SPI.transfer(dataToSend);
-  result = SPI.transfer(0x00);
-  bytesToRead--;
-  if (bytesToRead > 0) {
-    result = result << 8;
-    inByte = SPI.transfer(0x00);
-    result = result | inByte;
-    bytesToRead--;
-  }
-  digitalWrite(focusSS, HIGH);
-  return(result);
-}
-
-void writeRegister(byte thisRegister, byte thisValue) {
-  byte dataToSend = thisRegister;
-
-  digitalWrite(focusSS, LOW);
-
-  SPI.transfer(dataToSend);
-  SPI.transfer(thisValue);
-
-  digitalWrite(focusSS, HIGH);
-}
-
-numvar readReg() {
-  byte reg = getarg(1);
-  byte cnt = getarg(2);
-  Serial.println("arg1:");
-  Serial.println(reg);
-  Serial.println("arg2:");
-  Serial.println(cnt);
-  byte val = readRegister(reg, cnt);
-  Serial.println("val:");
-  Serial.println(val);
-}
-
-numvar writeReg() {
-  byte reg = getarg(1);
-  byte val = getarg(2);
-  Serial.println("arg1:");
-  Serial.println(reg, BIN);
-  Serial.println("arg2:");
-  Serial.println(val, BIN);
-  writeRegister(reg, val);
-}
-#endif
-
 numvar stepperOff() {
   analogWrite(stepperEN, 0);
   return 0;
@@ -309,126 +231,6 @@ numvar readFocusSensor() {
   return 0;
 }
 
-//DC motors
-
-numvar leftMotorForward() {
-  digitalWrite(stepperPin2, 0);
-  digitalWrite(stepperPin7, 1);
-  delay(30);
-  return 0;
-}
-
-numvar leftMotorBackward() {
-  digitalWrite(stepperPin2, 1);
-  digitalWrite(stepperPin7, 0);
-  delay(30);
-  return 0;
-}
-
-numvar leftMotorBreak() {
-  delay(30);
-  digitalWrite(stepperPin2, 0);
-  digitalWrite(stepperPin7, 0);
-  return 0;
-}
-
-numvar rightMotorForward() {
-  digitalWrite(stepperPin10, 0);
-  digitalWrite(stepperPin15, 1);
-  delay(30);
-  return 0;
-}
-
-numvar rightMotorBackward() {
-  digitalWrite(stepperPin10, 1);
-  digitalWrite(stepperPin15, 0);
-  delay(30);
-  return 0;
-}
-
-numvar rightMotorBreak() {
-  delay(30);
-  digitalWrite(stepperPin10, 0);
-  digitalWrite(stepperPin15, 0);
-  return 0;
-}
-
-float checkUltra(int i) {
-  float dist_cm;
-  switch (i) {
-    case 1:
-      dist_cm = fUltrasonic.Ranging(CM);
-      if (dist_cm < 3000) {
-        Serial.println("forwUltra:");
-        Serial.println(dist_cm);
-        return dist_cm;
-      }
-      break;
-    case 2:
-      dist_cm = bUltrasonic.Ranging(CM);
-      if (dist_cm < 3000) {
-        Serial.println("backUltra:");
-        Serial.println(dist_cm);
-        return dist_cm;
-      }
-      break;
-    default:
-      Serial.println("Ultra error");
-      return -1;
-  }
-}
-
-#define ms_div 200
-#define ultraZone 15
-
-void my_delay(int ms, int u) {
-  int ms_tmp = ms/ms_div;
-  int i;
-  Serial.println("ms_tmp:");
-  Serial.println(ms_tmp);
-  for (i = 0; i < ms_div; i++) {
-    if (checkUltra(u) > ultraZone) delay(ms_tmp);
-    else break;
-  }
-}
-
-numvar motorRun() {
-  Serial.println("RUN");
-  if ((checkUltra(1) > ultraZone) && (checkUltra(2) > ultraZone)) {
-    analogWrite(stepperEN, motorsPWM);
-  
-    switch (robotDirection) {
-      case 3:
-        leftMotorBackward();
-        rightMotorBackward();
-        delay(100);
-        leftMotorBreak();
-        rightMotorBreak();
-        robotDirection = 1;
-        break;
-      case 2:
-        leftMotorForward();
-        rightMotorForward();
-        my_delay(10000, 1);
-        leftMotorBreak();
-        rightMotorBreak();
-        robotDirection = 3;
-        break;
-      case 1:
-        leftMotorForward();
-        rightMotorBackward();
-        delay(500);
-        leftMotorBreak();
-        rightMotorBreak();
-        robotDirection = 2;
-        break;
-    }
-   
-    analogWrite(stepperEN, 0);
-  }
-  return 0;
-}
-
 void setup()  { 
   //pinMode(zoomPin, OUTPUT); 
   //pinMode(zoomPin1, OUTPUT); 
@@ -460,24 +262,10 @@ void setup()  {
   addBitlashFunction("sto", (bitlash_function) stepperOff);
   
   addBitlashFunction("rdf", (bitlash_function) readFocusSensor);
-  
-  addBitlashFunction("motors", (bitlash_function) motorRun);
-  
-#ifdef SPI_ENABLE
-  addBitlashFunction("wr", (bitlash_function) writeReg);
-  addBitlashFunction("rr", (bitlash_function) readReg);
-  SPI.begin();
-#endif
 } 
 
 void loop()  {
   runBitlash();
-  /*checkUltra(1);
-  delay(1000);
-  checkUltra(2);
-  delay(1000);*/
-  motorRun();
-  //delay(5000);
   //if (canCheck) checkSensor();
 }
 
