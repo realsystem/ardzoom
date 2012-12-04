@@ -10,9 +10,6 @@ EXECUTABLE	:= autoFocus
 
 all: $(SOURCES) $(EXECUTABLE) sock_serv
 
-#tmp
-#tmp1
-
 sock_serv: sock_serv.c
 	gcc $< -o $@
 
